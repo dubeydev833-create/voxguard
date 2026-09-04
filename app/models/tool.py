@@ -59,7 +59,15 @@ class ToolResult(BaseModel):
     output: Optional[Any] = None
     error: Optional[str] = None
     call_id: Optional[str] = None
+    request_id: Optional[str] = None
+    version: Optional[int] = None
+    status: str = "completed"
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def is_cancelled(self) -> bool:
+        """Check if execution result represents a cancellation."""
+        return self.status == "cancelled" or self.metadata.get("cancelled", False) is True
 
     @classmethod
     def ok(
@@ -67,14 +75,19 @@ class ToolResult(BaseModel):
         tool_name: str,
         output: Any,
         call_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        version: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> "ToolResult":
         """Convenience constructor for successful execution."""
         return cls(
             tool_name=tool_name,
             success=True,
+            status="completed",
             output=output,
             call_id=call_id,
+            request_id=request_id,
+            version=version,
             metadata=metadata or {},
         )
 
@@ -84,13 +97,41 @@ class ToolResult(BaseModel):
         tool_name: str,
         error: str,
         call_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        version: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> "ToolResult":
         """Convenience constructor for failed execution."""
         return cls(
             tool_name=tool_name,
             success=False,
+            status="failed",
             error=error,
             call_id=call_id,
+            request_id=request_id,
+            version=version,
             metadata=metadata or {},
+        )
+
+    @classmethod
+    def cancelled(
+        cls,
+        tool_name: str,
+        message: str = "Tool execution was cancelled.",
+        call_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        version: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> "ToolResult":
+        """Convenience constructor for cancelled execution."""
+        meta = {**(metadata or {}), "cancelled": True, "status": "cancelled"}
+        return cls(
+            tool_name=tool_name,
+            success=False,
+            status="cancelled",
+            error=message,
+            call_id=call_id,
+            request_id=request_id,
+            version=version,
+            metadata=meta,
         )

@@ -4,6 +4,7 @@ Provides central registration, lookup, schema extraction,
 and execution dispatch for agent tools.
 """
 
+import inspect
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from app.models.tool import ToolDefinition, ToolResult
@@ -93,6 +94,21 @@ class ToolRegistry:
                 error=f"Tool '{tool_name}' is not registered in the tool registry.",
             )
         return tool.run(**kwargs)
+
+    async def execute_async(self, tool_name: str, **kwargs: Any) -> ToolResult:
+        """Dispatch asynchronous execution to the registered tool by name."""
+        tool = self.get(tool_name)
+        if tool is None:
+            return ToolResult.fail(
+                tool_name=tool_name,
+                error=f"Tool '{tool_name}' is not registered in the tool registry.",
+            )
+        if hasattr(tool, "arun"):
+            return await tool.arun(**kwargs)
+        res = tool.execute(**kwargs)
+        if inspect.isawaitable(res):
+            return await res
+        return res
 
     def clear(self) -> None:
         """Clear all registered tools."""

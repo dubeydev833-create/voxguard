@@ -23,6 +23,8 @@ class EventType(str, Enum):
     CANCELLATION_REQUESTED = "CANCELLATION_REQUESTED"
     TOOL_STARTED = "TOOL_STARTED"
     TOOL_COMPLETED = "TOOL_COMPLETED"
+    TOOL_CANCELLED = "TOOL_CANCELLED"
+    TOOL_FAILED = "TOOL_FAILED"
     RESULT_ACCEPTED = "RESULT_ACCEPTED"
     RESULT_REJECTED_STALE = "RESULT_REJECTED_STALE"
     RESPONSE_READY = "RESPONSE_READY"
@@ -36,6 +38,7 @@ class Event(BaseModel):
     event_type: EventType
     session_id: str
     version: int
+    request_id: Optional[str] = None
     timestamp: float = Field(default_factory=time.time)
     payload: Dict[str, Any] = Field(default_factory=dict)
 
@@ -45,6 +48,7 @@ class ToolResultEnvelope(BaseModel):
 
     session_id: str
     version: int
+    request_id: Optional[str] = None
     tool_result: ToolResult
     call_id: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)

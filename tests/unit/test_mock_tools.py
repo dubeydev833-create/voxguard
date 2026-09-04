@@ -7,7 +7,10 @@ from app.tools.mock_tools import (
     MockBookRideTool,
     MockCalendarTool,
     MockDeviceControlTool,
+    MockFlightSearchTool,
     MockGetWeatherTool,
+    MockHotelSearchTool,
+    MockRestaurantSearchTool,
     MockSendEmailTool,
     MockTransferFundsTool,
     get_mock_tools,
@@ -192,11 +195,54 @@ def test_control_device_unsupported_action():
 
 
 # ---------------------------------------------------------
+# Test MockHotelSearchTool, MockFlightSearchTool, MockRestaurantSearchTool
+# ---------------------------------------------------------
+def test_hotel_search_success():
+    tool = MockHotelSearchTool()
+    assert tool.name == "hotel_search"
+    result = tool.run(destination="Delhi", max_price=3000)
+    assert result.success is True
+    assert result.output["destination"] == "Delhi"
+    assert result.output["count"] > 0
+
+
+def test_hotel_search_failure_simulation():
+    tool = MockHotelSearchTool()
+    result = tool.run(destination="Delhi", max_price=3000, fail=True)
+    assert result.success is False
+    assert "Hotel search service unavailable" in result.error
+
+
+def test_flight_search_success_and_failure():
+    tool = MockFlightSearchTool()
+    assert tool.name == "flight_search"
+    res = tool.run(destination="Mumbai", origin="Delhi", max_price=5000)
+    assert res.success is True
+    assert res.output["count"] > 0
+
+    fail_res = tool.run(destination="Mumbai", fail=True)
+    assert fail_res.success is False
+    assert "Flight search service unavailable" in fail_res.error
+
+
+def test_restaurant_search_success_and_failure():
+    tool = MockRestaurantSearchTool()
+    assert tool.name == "restaurant_search"
+    res = tool.run(location="Delhi", cuisine="North Indian")
+    assert res.success is True
+    assert res.output["count"] > 0
+
+    fail_res = tool.run(location="Delhi", fail=True)
+    assert fail_res.success is False
+    assert "Restaurant search service unavailable" in fail_res.error
+
+
+# ---------------------------------------------------------
 # Test ToolRegistry
 # ---------------------------------------------------------
 def test_get_mock_tools():
     tools = get_mock_tools()
-    assert len(tools) == 7
+    assert len(tools) == 9
     names = {t.name for t in tools}
     assert "send_email" in names
     assert "book_ride" in names
@@ -205,6 +251,8 @@ def test_get_mock_tools():
     assert "create_calendar_event" in names
     assert "control_device" in names
     assert "hotel_search" in names
+    assert "flight_search" in names
+    assert "restaurant_search" in names
 
 
 def test_tool_registry_registration_and_lookup():
@@ -263,7 +311,7 @@ def test_tool_registry_execution():
 def test_tool_definitions_export():
     registry = create_default_registry()
     definitions = registry.get_definitions()
-    assert len(definitions) == 7
+    assert len(definitions) == 9
 
     for defn in definitions:
         assert isinstance(defn, ToolDefinition)

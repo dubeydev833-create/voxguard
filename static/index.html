@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoxGuard — Voice Agent & Telemetry Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-shield">🛡️</span>
+        <div>
+          <h1>VoxGuard</h1>
+          <p class="subtitle">Voice-First Agent Guardrail & Result Fencing</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div id="connectionStatus" class="badge badge-disconnected">WebSocket: Disconnected</div>
+        <button id="newSessionBtn" class="btn btn-secondary">New Session</button>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="dashboard-grid">
+      <!-- Left Column: Session State & Controls -->
+      <section class="panel control-panel">
+        <div class="panel-header">
+          <h2>Session Status</h2>
+          <span id="sessionStateBadge" class="badge badge-idle">IDLE</span>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Session ID</span>
+            <span id="sessionIdVal" class="meta-value mono">—</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Current Version</span>
+            <span id="currVersionVal" class="meta-value mono">0</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Committed Version</span>
+            <span id="commVersionVal" class="meta-value mono">—</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Active Request ID</span>
+            <span id="activeReqVal" class="meta-value mono">—</span>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Voice & User Input Section -->
+        <div class="input-section">
+          <h3>Voice & Input Interface</h3>
+          
+          <div class="voice-controls">
+            <button id="micBtn" class="btn btn-mic" title="Toggle Microphone">
+              <span class="mic-icon">🎙️</span>
+              <span id="micStatusText">Start Voice Input</span>
+            </button>
+            <div id="micIndicator" class="mic-wave hidden">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="promptInput">User Query / Voice Transcript</label>
+            <textarea id="promptInput" rows="3" placeholder="Type prompt or use microphone (e.g. 'Find a 5-star hotel in Paris')..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="delayInput">Simulated Delay (seconds)</label>
+              <input type="number" id="delayInput" min="0" max="30" step="0.5" value="2.0" title="Simulate tool latency to test barge-in">
+            </div>
+            <div class="form-group flex-1">
+              <label for="speakerSelect">Rime Speaker</label>
+              <select id="speakerSelect">
+                <option value="marsh" selected>Marsh (Default)</option>
+                <option value="amber">Amber</option>
+                <option value="allison">Allison</option>
+                <option value="cindy">Cindy</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="action-buttons">
+            <button id="sendTurnBtn" class="btn btn-primary">Send Prompt</button>
+            <button id="interruptBtn" class="btn btn-danger">⚡ Barge-in / Interrupt</button>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Voice Audio Player Section -->
+        <div class="audio-section">
+          <div class="section-subhead">
+            <h3>Rime Voice Playback</h3>
+            <span id="audioStatusBadge" class="badge badge-muted">Idle</span>
+          </div>
+          <audio id="ttsAudioPlayer" controls class="full-width-audio"></audio>
+          <div class="audio-toggles">
+            <label class="toggle-label">
+              <input type="checkbox" id="autoTtsCheck" checked>
+              <span>Auto-synthesize speech on response</span>
+            </label>
+            <button id="manualTtsBtn" class="btn btn-sm btn-secondary">Synthesize Latest</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Live Conversation & Telemetry Feed -->
+      <section class="panel feed-panel">
+        <div class="panel-header">
+          <h2>Live Guardrail Telemetry & Conversation</h2>
+          <button id="clearFeedBtn" class="btn btn-sm btn-ghost">Clear Log</button>
+        </div>
+
+        <div class="feed-tabs">
+          <button class="tab-btn active" data-tab="conversation">Conversation</button>
+          <button class="tab-btn" data-tab="telemetry">Security & Event Log</button>
+        </div>
+
+        <!-- Conversation Tab -->
+        <div id="conversationTab" class="tab-content active">
+          <div id="conversationList" class="conversation-container">
+            <div class="empty-state">No conversation turns yet. Click "New Session" or send a query to begin.</div>
+          </div>
+        </div>
+
+        <!-- Telemetry Tab -->
+        <div id="telemetryTab" class="tab-content">
+          <div id="eventLogList" class="event-log-container mono">
+            <div class="empty-state">No events recorded. Events stream via WebSocket in real-time.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Status -->
+    <footer class="app-footer">
+      <div>Invariant: <span class="invariant-text">ONLY CURRENT INTENT VERSION CAN MUTATE STATE OR TRIGGER RESPONSE</span></div>
+      <div>Result Fencing: <span class="badge badge-shield">ACTIVE</span></div>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

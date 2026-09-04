@@ -25,6 +25,17 @@ class SessionState(str, Enum):
 from app.models.tool import ToolResult
 
 
+class RequestContext(BaseModel):
+    """Identity and lifecycle context for an individual user request turn."""
+
+    request_id: str
+    session_id: str
+    version: int
+    user_input: str
+    status: str = "pending"
+    created_at: float = Field(default_factory=time.time)
+
+
 class Session(BaseModel):
     """In-memory state and task tracking for a user agent session."""
 
@@ -32,12 +43,15 @@ class Session(BaseModel):
 
     session_id: str
     current_version: int = 0
+    current_request_id: Optional[str] = None
+    committed_request_id: Optional[str] = None
     state: SessionState = SessionState.IDLE
     last_transcript: Optional[str] = None
     active_task: Optional[asyncio.Task] = Field(default=None, exclude=True)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     committed_version: Optional[int] = None
     committed_data: Dict[str, Any] = Field(default_factory=dict)
+    requests: Dict[str, RequestContext] = Field(default_factory=dict)
     last_result: Optional[ToolResult] = None
     last_response: Optional[str] = None
     created_at: float = Field(default_factory=time.time)
@@ -45,7 +59,13 @@ class Session(BaseModel):
 
     def cancel_active_task(self) -> bool:
         """Cancel the active background task if one is running."""
-        if self.active_task is not None and not self.active_task.done():
-            self.active_task.cancel()
-            return True
+        if self.active_task is not None:
+            if not self.active_task.done():
+                try:
+                    self.active_task.cancel()
+                    return True
+                except Exception:
+                    return False
+            else:
+                self.active_task = None
         return False
