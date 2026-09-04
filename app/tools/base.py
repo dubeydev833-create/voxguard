@@ -4,8 +4,10 @@ Defines the abstract BaseTool class from which all concrete tools,
 mock tools, and integration tools inherit.
 """
 
+import asyncio
+import inspect
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from app.models.tool import RiskLevel, ToolDefinition, ToolResult
 
@@ -39,18 +41,47 @@ class BaseTool(ABC):
             self.requires_confirmation = requires_confirmation
 
     @abstractmethod
-    def execute(self, **kwargs: Any) -> ToolResult:
-        """Execute the tool with given keyword arguments and return a ToolResult.
-
+    def execute(self, **kwargs: Any) -> Union[ToolResult, Any]:
+        """Execute the tool with given keyword arguments (can be synchronous or asynchronous).
+        
         Must be implemented by subclasses.
         """
         raise NotImplementedError("Tool execution must be implemented by subclasses.")
 
-    def run(self, **kwargs: Any) -> ToolResult:
-        """Alias for execute with argument validation."""
+    async def arun(self, **kwargs: Any) -> ToolResult:
+        """Asynchronously validate arguments and execute the tool."""
         try:
             self.validate_arguments(**kwargs)
-            return self.execute(**kwargs)
+            res = self.execute(**kwargs)
+            if inspect.isawaitable(res):
+                return await res
+            return res
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            return ToolResult.fail(
+                tool_name=self.name,
+                error=str(exc),
+            )
+
+    def run(self, **kwargs: Any) -> ToolResult:
+        """Alias for execute with argument validation (synchronous wrapper)."""
+        try:
+            self.validate_arguments(**kwargs)
+            if hasattr(self, "execute_sync") and callable(getattr(self, "execute_sync")):
+                return getattr(self, "execute_sync")(**kwargs)
+
+            res = self.execute(**kwargs)
+            if inspect.isawaitable(res):
+                try:
+                    asyncio.get_running_loop()
+                except RuntimeError:
+                    return asyncio.run(res)
+                raise RuntimeError(
+                    f"Tool '{self.name}' is an asynchronous tool. "
+                    f"Use 'await tool.arun(...)' or 'await tool.execute(...)' in an active event loop."
+                )
+            return res
         except Exception as exc:
             return ToolResult.fail(
                 tool_name=self.name,

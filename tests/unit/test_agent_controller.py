@@ -58,6 +58,19 @@ def test_intent_parsing_coverage(controller: AgentController):
     assert parsed[0] == "control_device"
     assert parsed[1]["action"] == "turn_on"
 
+    # Flight search
+    parsed = controller.default_intent_parser("Find a flight from Delhi to Mumbai")
+    assert parsed is not None
+    assert parsed[0] == "flight_search"
+    assert parsed[1]["destination"] == "Mumbai"
+    assert parsed[1]["origin"] == "Delhi"
+
+    # Restaurant search
+    parsed = controller.default_intent_parser("Find restaurants in Delhi")
+    assert parsed is not None
+    assert parsed[0] == "restaurant_search"
+    assert parsed[1]["location"] == "Delhi"
+
     # Direct conversation without tools
     parsed_chat = controller.default_intent_parser("Hello there, how are you?")
     assert parsed_chat is None

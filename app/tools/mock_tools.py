@@ -4,6 +4,7 @@ Mock implementations of common voice agent tools for development,
 guardrail verification, and integration testing.
 """
 
+import asyncio
 from typing import Any, Dict, List, Optional
 import uuid
 
@@ -348,12 +349,22 @@ class MockHotelSearchTool(BaseTool):
                 "default": "Downtown",
                 "description": "Destination city or neighborhood.",
             },
+            "delay": {
+                "type": "number",
+                "default": 0.0,
+                "description": "Simulated latency delay in seconds.",
+            },
         },
         "required": ["max_price"],
     }
 
-    def execute(self, **kwargs: Any) -> ToolResult:
+    def execute_sync(self, **kwargs: Any) -> ToolResult:
         self.validate_arguments(**kwargs)
+        if kwargs.get("fail") or kwargs.get("simulate_failure"):
+            return ToolResult.fail(
+                tool_name=self.name,
+                error=kwargs.get("error_message", "Hotel search service unavailable"),
+            )
         max_price = float(kwargs["max_price"])
         destination = kwargs.get("destination", "Delhi")
 
@@ -376,6 +387,13 @@ class MockHotelSearchTool(BaseTool):
             },
         )
 
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        self.validate_arguments(**kwargs)
+        delay = float(kwargs.get("delay", kwargs.get("simulated_delay", 0.0)) or 0.0)
+        if delay > 0:
+            await asyncio.sleep(delay)
+        return self.execute_sync(**kwargs)
+
 
 class MockFlightSearchTool(BaseTool):
     """Mock tool simulating flight search."""
@@ -390,12 +408,18 @@ class MockFlightSearchTool(BaseTool):
             "destination": {"type": "string", "description": "Arrival airport or city."},
             "origin": {"type": "string", "default": "Delhi", "description": "Departure airport or city."},
             "max_price": {"type": "number", "description": "Maximum fare in INR."},
+            "delay": {"type": "number", "default": 0.0, "description": "Simulated latency delay in seconds."},
         },
         "required": ["destination"],
     }
 
-    def execute(self, **kwargs: Any) -> ToolResult:
+    def execute_sync(self, **kwargs: Any) -> ToolResult:
         self.validate_arguments(**kwargs)
+        if kwargs.get("fail") or kwargs.get("simulate_failure"):
+            return ToolResult.fail(
+                tool_name=self.name,
+                error=kwargs.get("error_message", "Flight search service unavailable"),
+            )
         dest = kwargs["destination"]
         origin = kwargs.get("origin", "Delhi")
         max_p = float(kwargs.get("max_price", 10000))
@@ -406,8 +430,15 @@ class MockFlightSearchTool(BaseTool):
         matching = [f for f in flights if f["price"] <= max_p]
         return ToolResult.ok(
             tool_name=self.name,
-            output={"flights": matching, "count": len(matching), "destination": dest, "status": "found"},
+            output={"flights": matching, "count": len(matching), "destination": dest, "origin": origin, "status": "found"},
         )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        self.validate_arguments(**kwargs)
+        delay = float(kwargs.get("delay", kwargs.get("simulated_delay", 0.0)) or 0.0)
+        if delay > 0:
+            await asyncio.sleep(delay)
+        return self.execute_sync(**kwargs)
 
 
 class MockRestaurantSearchTool(BaseTool):
@@ -421,24 +452,42 @@ class MockRestaurantSearchTool(BaseTool):
         "type": "object",
         "properties": {
             "location": {"type": "string", "default": "Delhi"},
+            "destination": {"type": "string", "description": "Alias for location"},
             "cuisine": {"type": "string", "default": "North Indian"},
             "max_price": {"type": "number"},
+            "delay": {"type": "number", "default": 0.0, "description": "Simulated latency delay in seconds."},
         },
         "required": [],
     }
 
-    def execute(self, **kwargs: Any) -> ToolResult:
-        loc = kwargs.get("location", "Delhi")
+    def execute_sync(self, **kwargs: Any) -> ToolResult:
+        self.validate_arguments(**kwargs)
+        if kwargs.get("fail") or kwargs.get("simulate_failure"):
+            return ToolResult.fail(
+                tool_name=self.name,
+                error=kwargs.get("error_message", "Restaurant search service unavailable"),
+            )
+        loc = kwargs.get("location") or kwargs.get("destination") or "Delhi"
         cuisine = kwargs.get("cuisine", "North Indian")
         restaurants = [
             {"name": "Bukhara", "cuisine": "North Indian", "avg_cost": 2500},
             {"name": "Karim's", "cuisine": "Mughlai", "avg_cost": 900},
             {"name": "Saravana Bhavan", "cuisine": "South Indian", "avg_cost": 500},
         ]
+        max_p = kwargs.get("max_price")
+        if max_p is not None:
+            restaurants = [r for r in restaurants if r["avg_cost"] <= float(max_p)]
         return ToolResult.ok(
             tool_name=self.name,
-            output={"restaurants": restaurants, "location": loc, "cuisine": cuisine, "status": "found"},
+            output={"restaurants": restaurants, "count": len(restaurants), "location": loc, "cuisine": cuisine, "status": "found"},
         )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        self.validate_arguments(**kwargs)
+        delay = float(kwargs.get("delay", kwargs.get("simulated_delay", 0.0)) or 0.0)
+        if delay > 0:
+            await asyncio.sleep(delay)
+        return self.execute_sync(**kwargs)
 
 
 def get_mock_tools() -> List[BaseTool]:
@@ -451,4 +500,6 @@ def get_mock_tools() -> List[BaseTool]:
         MockCalendarTool(),
         MockDeviceControlTool(),
         MockHotelSearchTool(),
+        MockFlightSearchTool(),
+        MockRestaurantSearchTool(),
     ]

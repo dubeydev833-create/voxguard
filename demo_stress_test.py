@@ -85,33 +85,34 @@ async def main():
 
                         evt_type = event.get("event_type", "UNKNOWN")
                         version = event.get("version", 0)
+                        req_id = event.get("request_id") or "-"
                         payload = event.get("payload", {})
 
                         # Color-coded log format
                         if evt_type == "TURN_STARTED":
                             tag = f"{BLUE}[TURN_STARTED]{RESET}"
-                            detail = f"Version: {version} | Prompt: \"{payload.get('transcript', '')}\""
+                            detail = f"Version: {version} | Req: {req_id} | Prompt: \"{payload.get('transcript', '')}\""
                         elif evt_type == "TOOL_STARTED":
                             tag = f"{MAGENTA}[TOOL_STARTED]{RESET}"
-                            detail = f"Version: {version} | Tool: {payload.get('tool_name')} | Args: {payload.get('arguments')}"
+                            detail = f"Version: {version} | Req: {req_id} | Tool: {payload.get('tool_name')} | Args: {payload.get('arguments')}"
                         elif evt_type == "CANCELLATION_REQUESTED":
                             tag = f"{YELLOW}[CANCELLATION_REQUESTED]{RESET}"
-                            detail = f"Version: {version} | Reason: {payload.get('reason')}"
+                            detail = f"Version: {version} | Req: {req_id} | Reason: {payload.get('reason')}"
                         elif evt_type == "RESULT_REJECTED_STALE":
                             tag = f"{RED}{BOLD}[RESULT_REJECTED_STALE]{RESET}"
-                            detail = f"FENCE BLOCKED: Version {payload.get('result_version')} rejected! Active session version is {payload.get('session_current_version')}."
+                            detail = f"FENCE BLOCKED: Req {payload.get('result_request_id')} (v{payload.get('result_version')}) rejected! Active is Req {payload.get('session_current_request_id')} (v{payload.get('session_current_version')})."
                         elif evt_type == "RESULT_ACCEPTED":
                             tag = f"{GREEN}{BOLD}[RESULT_ACCEPTED]{RESET}"
-                            detail = f"FENCE APPROVED: Version {version} result accepted for {payload.get('tool_name')}!"
+                            detail = f"FENCE APPROVED: Req {req_id} (v{version}) result accepted for {payload.get('tool_name')}!"
                         elif evt_type == "RESPONSE_READY":
                             tag = f"{GREEN}[RESPONSE_READY]{RESET}"
-                            detail = f"Synthesized Response: \"{payload.get('response')}\""
+                            detail = f"Req: {req_id} | Synthesized Response: \"{payload.get('response')}\""
                         elif evt_type == "INTERRUPTED":
                             tag = f"{YELLOW}[INTERRUPTED]{RESET}"
-                            detail = f"Version: {version} | State: {payload.get('state')}"
+                            detail = f"Version: {version} | Req: {req_id} | State: {payload.get('state')}"
                         else:
                             tag = f"[EVENT:{evt_type}]"
-                            detail = str(payload)
+                            detail = f"Req: {req_id} | {payload}"
 
                         ts = time.strftime("%H:%M:%S", time.localtime(event.get("timestamp", time.time())))
                         print(f"      {CYAN}{ts}{RESET} {tag} {detail}")
@@ -179,12 +180,14 @@ async def main():
         print(f"  [{GREEN if response_ready_verified else RED}X{RESET}] Natural language response synthesized: RESPONSE_READY\n")
 
         print(f"{BOLD}Final Committed Session State:{RESET}")
-        print(f"  - Session ID        : {final_data['session_id']}")
-        print(f"  - Current Version   : {final_data['current_version']}")
-        print(f"  - State             : {GREEN}{final_data['state']}{RESET}")
-        print(f"  - Committed Version : {GREEN}{final_data['committed_version']}{RESET}")
-        print(f"  - Committed MaxPrice: {GREEN}₹{final_data['committed_data'].get('max_price')}{RESET} (V1's ₹5000 was discarded!)")
-        print(f"  - Final Spoken Text : {CYAN}\"{final_data.get('last_response')}\"{RESET}\n")
+        print(f"  - Session ID          : {final_data['session_id']}")
+        print(f"  - Current Version     : {final_data['current_version']}")
+        print(f"  - Current Request ID  : {final_data.get('current_request_id')}")
+        print(f"  - State               : {GREEN}{final_data['state']}{RESET}")
+        print(f"  - Committed Version   : {GREEN}{final_data['committed_version']}{RESET}")
+        print(f"  - Committed Request ID: {GREEN}{final_data.get('committed_request_id')}{RESET}")
+        print(f"  - Committed MaxPrice  : {GREEN}₹{final_data['committed_data'].get('max_price')}{RESET} (V1's ₹5000 was discarded!)")
+        print(f"  - Final Spoken Text   : {CYAN}\"{final_data.get('last_response')}\"{RESET}\n")
 
         if stale_rejected_verified and accepted_verified and final_data["committed_version"] == 2:
             print(f"{GREEN}{BOLD}>>> RESULT FENCING DEMO PASSED PERFECTLY! <<<{RESET}\n")
